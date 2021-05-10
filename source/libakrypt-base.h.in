@@ -439,10 +439,10 @@ extern "C" {
 /** @} */
 
 /* ----------------------------------------------------------------------------------------------- */
-#ifndef __STDC_VERSION__
+/*#ifndef __STDC_VERSION__
   #define inline
   int snprintf(char *str, size_t size, const char *format, ... );
-#endif
+#endif*/
 #ifdef _MSC_VER
  #define __func__  __FUNCTION__
  #define strtoll _strtoi64
