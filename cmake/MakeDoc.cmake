@@ -11,7 +11,6 @@ find_program( GZIP gzip )
 
 if( UNIX )
   set( script ${CMAKE_BINARY_DIR}/make-doc-${FULL_VERSION}.sh )
-  set( pdf-script ${CMAKE_BINARY_DIR}/make-pdfdoc-${FULL_VERSION}.sh )
   file( WRITE ${script} "#/bin/bash\n" )
   
   if( PANDOC )
@@ -36,14 +35,6 @@ if( UNIX )
     file( APPEND ${script} "doxygen Doxyfile.akbase\n" )
     file( APPEND ${script} "doxygen Doxyfile.akrypt\n" )
 
-    if( XELATEX )
-      file( APPEND ${pdf-script} "${script}\n" )
-      file( APPEND ${pdf-script} "cd doc-akbase/latex; make; cd ../..\n" )
-      file( APPEND ${pdf-script} "cp doc-akbase/latex/refman.pdf ${CMAKE_BINARY_DIR}/libakrypt-base-doc-${FULL_VERSION}.pdf\n")
-      file( APPEND ${pdf-script} "cd doc-akrypt/latex; make; cd ../..\n" )
-      file( APPEND ${pdf-script} "cp doc-akrypt/latex/refman.pdf ${CMAKE_BINARY_DIR}/libakrypt-doc-${FULL_VERSION}.pdf\n")
-    endif()
-
     if( QHELPGENERATOR )
       file( APPEND ${script} "cp doc-akbase/html/akbase-library.qch ${CMAKE_BINARY_DIR}/libakrypt-base-doc-${FULL_VERSION}.qch\n" )
       file( APPEND ${script} "rm doc-akbase/html/akbase-library.qch\n" )
@@ -61,9 +52,7 @@ if( UNIX )
   endif()
 
   execute_process( COMMAND chmod +x ${script} )
-  execute_process( COMMAND chmod +x ${pdf-script} )
   add_custom_target( doc ${script} )
-  add_custom_target( pdf ${pdf-script} )
-  message("-- Script for documentation is done (now \"make doc\" and \"make pdf\" enabled)")
+  message("-- Script for documentation is done (now \"make doc\" and enabled)")
 endif()
 

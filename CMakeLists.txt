@@ -23,12 +23,6 @@ option( AK_SHARED_LIB "Build the shared library" ON )
 option( AK_TESTS_GMP "Build comparison tests for gmp and libakrypt" OFF )
 
 # -------------------------------------------------------------------------------------------------- #
-# Перечень опций, которые имеют предустановленные значения и могут изменяться через командную строку
-# для linux
-#   set( AK_CONFIG_PATH  "/etc" )
-#   set( AK_CA_PATH "/usr/share/ca-certificates" )
-
-# -------------------------------------------------------------------------------------------------- #
 # Подключаем модули CMake для тонкой настройки параметров сборки
 set( CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH} )
 include( DetectFlags )
@@ -101,27 +95,13 @@ message("-- Used compile flags ${CMAKE_C_FLAGS}")
 if( AK_CONFIG_PATH )
 else()
   if( CMAKE_HOST_UNIX )
-    set( AK_CONFIG_PATH "/etc" )
+    set( AK_CONFIG_PATH "etc" )
   endif()
   if( WIN32 )
     set( AK_CONFIG_PATH "C:\\\\Program Files\\\\Akrypt" )
   endif()
 endif()
 message("-- Path for libakrypt.conf is ${AK_CONFIG_PATH}")
-
-# -------------------------------------------------------------------------------------------------- #
-# Определяем место хранения доверенных сертификатов библиотеки
-# -------------------------------------------------------------------------------------------------- #
-if( AK_CA_PATH )
-else()
-  if( CMAKE_HOST_UNIX )
-    set( AK_CA_PATH "/usr/share/ca-certificates/libakrypt" )
-  endif()
-  if( WIN32 )
-    set( AK_CA_PATH "C:\\\\Program Files\\\\Akrypt\\\\ca-certificates" )
-  endif()
-endif()
-message("-- Path for ca-certificates is ${AK_CA_PATH}")
 
 # -------------------------------------------------------------------------------------------------- #
 # Определем процедуры сборки библиотек - статической или динамической
@@ -131,7 +111,6 @@ add_compile_options( -DLIBAKRYPT_OPTIONS_PATH="${AK_CONFIG_PATH}" )
 add_compile_options( -DLIBAKRYPT_VERSION="${FULL_VERSION}" )
 add_compile_options( -DLIBAKRYPT_COMPILER_NAME="${CMAKE_C_COMPILER}" )
 add_compile_options( -DLIBAKRYPT_COMPILER_VERSION="${CMAKE_C_COMPILER_VERSION}" )
-add_compile_options( -DLIBAKRYPT_CA_PATH="${AK_CA_PATH}" )
 
 if( AK_SHARED_LIB )
   add_library( akbase-shared SHARED ${MAIN_HEADERS} ${AKBASE_SOURCES} )
@@ -296,7 +275,6 @@ if( CMAKE_HOST_UNIX )
   else()
     install( FILES ${CMAKE_SOURCE_DIR}/aktool/aktool.1 DESTINATION share/man/ru/man1 )
   endif()
-  install( FILES ${CMAKE_SOURCE_DIR}/cert/ca-libakrypt.crt DESTINATION ${AK_CA_PATH} )
 
 # деинсталляция
 # sudo xargs rm < install_manifest.txt
