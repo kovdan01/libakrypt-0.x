@@ -211,7 +211,7 @@
     @return В случае успеха, функция указатель на созданную строку. В противном случае возвращается
     NULL. Код ошибки может быть получен с помощью вызова функции ak_error_get_value().             */
 /* ----------------------------------------------------------------------------------------------- */
- const char *ak_mpzn_to_hexstr( ak_uint64 *x, const size_t size )
+ const char *ak_mpzn_to_hexstr( const ak_uint64 *x, const size_t size )
 {
 #ifdef AK_BIG_ENDIAN
   size_t i = 0;
@@ -429,7 +429,7 @@
     константой \ref ak_mpzn256_size или \ref ak_mpzn512_size
     @return Функция возвращает значение знака переноса.                                            */
 /* ----------------------------------------------------------------------------------------------- */
- ak_uint64 ak_mpzn_sub( ak_uint64 *z, ak_uint64 *x, ak_uint64 *y, const size_t size )
+ ak_uint64 ak_mpzn_sub( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const size_t size )
 {
   size_t i = 0;
   ak_uint64 av = 0, bv = 0, cy = 0;
@@ -456,7 +456,7 @@
     @return Функция возвращает 1, если левый аргумент больше чем правый, -1 если левый аргумент
             меньше, чем правый и 0 если оба аргумента функции совпадают.                           */
 /* ----------------------------------------------------------------------------------------------- */
- int ak_mpzn_cmp( ak_uint64 *x, ak_uint64 *y, const size_t size )
+ int ak_mpzn_cmp( const ak_uint64 *x, const ak_uint64 *y, const size_t size )
 {
   size_t i = 0;
   ak_mpznmax z = ak_mpznmax_zero;

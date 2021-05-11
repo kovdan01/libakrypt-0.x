@@ -1058,7 +1058,7 @@ extern "C" {
 /*! \brief Присвоение вычету значения, записанного строкой шестнадцатеричных символов. */
  dll_export int ak_mpzn_set_hexstr( ak_uint64 *, const size_t , const char * );
 /*! \brief Преобразование вычета в строку шестнадцатеричных символов. */
- dll_export const char *ak_mpzn_to_hexstr( ak_uint64 *, const size_t );
+ dll_export const char *ak_mpzn_to_hexstr( const ak_uint64 *, const size_t );
 /*! \brief Преобразование вычета в строку шестнадцатеричных символов с выделением памяти. */
  dll_export char *ak_mpzn_to_hexstr_alloc( ak_uint64 *, const size_t );
 /*! \brief Сериализация вычета в последовательность октетов. */
@@ -1071,9 +1071,9 @@ extern "C" {
 /*! \brief Сложение двух вычетов */
  dll_export ak_uint64 ak_mpzn_add( ak_uint64 *, ak_uint64 *, ak_uint64 *, const size_t );
 /*! \brief Вычитание двух вычетов */
- dll_export ak_uint64 ak_mpzn_sub( ak_uint64 *, ak_uint64 *, ak_uint64 *, const size_t );
+ dll_export ak_uint64 ak_mpzn_sub( ak_uint64 *, const ak_uint64 *, const ak_uint64 *, const size_t );
 /*! \brief Сравнение двух вычетов */
- dll_export int ak_mpzn_cmp( ak_uint64 *, ak_uint64 *, const size_t );
+ dll_export int ak_mpzn_cmp( const ak_uint64 *, const ak_uint64 *, const size_t );
 /*! \brief Сравнение вычета с беззнаковым целым числом (типа ak_uint64) */
  dll_export bool_t ak_mpzn_cmp_ui( ak_uint64 *, const size_t , const ak_uint64 );
 /*! \brief Умножение вычета на беззнаковое целое */
