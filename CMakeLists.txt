@@ -52,6 +52,7 @@ set( AKBASE_SOURCES
 # Добавляем исходные тексты для криптобиблиотеки
 set( AKRYPT_SOURCES
    source/libakrypt-internal.h
+   source/ak_128.c
    source/ak_options.c
    source/ak_libakrypt.c
    source/ak_oid.c
