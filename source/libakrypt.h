@@ -1109,6 +1109,8 @@ extern "C" {
 
  dll_export void ak_128_mul_mod( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const ak_uint64 *p );
 
+ dll_export void ak_128_opposite( ak_uint64 *o, const ak_uint64 *x, const ak_uint64 *p );
+
 #ifdef AK_HAVE_GMP_H
 /*! \brief Преобразование ak_mpznxxx в mpz_t. */
  dll_export void ak_mpzn_to_mpz( const ak_uint64 *, const size_t , mpz_t );
