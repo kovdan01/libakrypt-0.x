@@ -229,7 +229,7 @@
 
  static void ak_128_gcd( const ak_uint64* a, const ak_uint64* b, ak_uint64 *x, ak_uint64 *y )
 {
-  if (a[0] == 0 && a[1] == 0)
+  if ( a[0] == 0 && a[1] == 0 )
   {
     x[0] = 0;
     x[1] = 0;
@@ -242,12 +242,12 @@
   ak_uint64 b_div_a[4] = { 0, 0, 0, 0 };
   ak_uint64 b_mod_a[4] = { 0, 0, 0, 0 };
 
-  ak_128_div(b_mod_a, b_div_a, b, a);
+  ak_128_div( b_mod_a, b_div_a, b, a );
 
-  ak_128_gcd(b_mod_a, a, x1, y1);
+  ak_128_gcd( b_mod_a, a, x1, y1 );
   ak_uint64 b_div_a_mul_x1[4];
-  ak_128_mul(b_div_a_mul_x1, b_div_a, x1);
-  ak_mpzn_sub(x, y1, b_div_a_mul_x1, 4);
+  ak_128_mul( b_div_a_mul_x1, b_div_a, x1 );
+  ak_mpzn_sub( x, y1, b_div_a_mul_x1, 4 );
   for (int i = 0; i < 4; ++i)
     y[i] = x1[i];
 }
@@ -259,7 +259,76 @@
   ak_uint64 ans[4];
   ak_uint64 tmp[4];
 
-  ak_128_gcd(x4, p4, ans, tmp);
+  ak_128_gcd( x4, p4, ans, tmp );
   o[0] = ans[0];
   o[1] = ans[1];
+}
+
+ static ak_uint64 sub_128( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y )
+{
+  z[0] = x[0] - y[0];
+  z[1] = x[1] - y[1];
+  ak_uint64 ans = z[1] > x[1];
+  ak_uint64 before = z[1];
+  z[1] -= z[0] > x[0];
+  ans |= before < z[1];
+  return ans;
+}
+
+ static void sub_128_mod( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const ak_uint64 *p )
+{
+  if ( sub_128( z, x, y ) )
+  {
+    z[0] += p[0];
+    z[1] += p[1];
+    z[1] += p[0] > z[0];
+  }
+}
+
+ void ak_128_double_point( ak_uint64 *x3, ak_uint64 *y3, const ak_uint64 *x1, const ak_uint64 *y1, const ak_uint64 *p )
+{
+  // TODO
+  x3[0] = 0;
+  x3[1] = 0;
+  y3[0] = 0;
+  y3[1] = 0;
+}
+
+ void ak_128_add_points( ak_uint64 *x3, ak_uint64 *y3, const ak_uint64 *x1, const ak_uint64 *y1, const ak_uint64 *x2, const ak_uint64 *y2, const ak_uint64 *p )
+{
+  if ( x1[0] == x2[0] && x1[1] == x2[1] )
+  {
+    ak_uint64 y1_plus_y2[2];
+    ak_128_add_mod( y1_plus_y2, y1, y2, p );
+    if ( y1_plus_y2[0] == 0 && y1_plus_y2[0] == 0 )
+    {
+      x3[0] = 0;
+      x3[1] = 0;
+      y3[0] = 0;
+      y3[1] = 0;
+      return;
+    }
+    if ( y1[0] == y2[0] && y1[1] == y2[1] )
+    {
+      ak_128_double_point(x3, y3, x1, y1, p);
+    }
+  }
+  ak_uint64 num[2];
+  ak_uint64 den[2];
+  sub_128_mod( num, y1, y2, p );
+  sub_128_mod( den, x1, x2, p );
+  ak_uint64 den_opp[2];
+  ak_128_opposite( den_opp, den, p );
+  ak_uint64 s[2];
+  ak_uint64 s_2[2];
+  ak_128_mul_mod( s, num, den_opp, p );
+  ak_128_mul_mod( s_2, s, s, p );
+  ak_uint64 s_2_minus_x1[2];
+  sub_128_mod( s_2_minus_x1, s_2, x1, p );
+  sub_128_mod( x3, s_2_minus_x1, x2, p );
+  ak_uint64 x3_minus_x1[2];
+  sub_128_mod( x3_minus_x1, x3, x1, p );
+  ak_uint64 s_mul_x3_minus_x1[2];
+  ak_128_mul_mod( s_mul_x3_minus_x1, s, x3_minus_x1, p );
+  ak_128_add_mod( y3, y1, s_mul_x3_minus_x1, p );
 }
