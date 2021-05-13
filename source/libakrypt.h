@@ -1098,6 +1098,17 @@ extern "C" {
  dll_export void ak_mpzn_modpow_montgomery( ak_uint64 *, ak_uint64 *, ak_uint64 *,
                                                            ak_uint64 *, ak_uint64, const size_t );
 /* ----------------------------------------------------------------------------------------------- */
+
+ dll_export ak_uint64 ak_128_add( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y );
+
+ dll_export void ak_128_add_mod( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const ak_uint64 *p );
+
+ dll_export void ak_128_mul( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y );
+
+ dll_export void ak_128_rem( ak_uint64 *r, const ak_uint64 *u, const ak_uint64 *p );
+
+ dll_export void ak_128_mul_mod( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const ak_uint64 *p );
+
 #ifdef AK_HAVE_GMP_H
 /*! \brief Преобразование ak_mpznxxx в mpz_t. */
  dll_export void ak_mpzn_to_mpz( const ak_uint64 *, const size_t , mpz_t );
