@@ -50,7 +50,7 @@
 {
   z[0] = x[0] + y[0];
   z[1] = x[1] + y[1];
-  ak_uint64 ret = z[1] < x[1];
+  ak_uint64 ret = (z[1] < x[1]) || ((z[1] == 0xffffffffffffffffllu) && (z[0] < x[0]));
   z[1] += (z[0] < x[0]);
   return ret;
 }
@@ -367,12 +367,10 @@
   ak_128_div( b_div_a, b_mod_a, b, a );
 
   ak_128_gcd( b_mod_a, a, x1, y1 );
-  ak_uint64 b_div_a_mul_x1[4];
+  ak_mpzn256 b_div_a_mul_x1;
   ak_128_mul( b_div_a_mul_x1, b_div_a, x1 );
   ak_128_sub( x, y1, b_div_a_mul_x1 );
   ak_mpzn_set(y, x1, ak_mpzn256_size);
-//  for (int i = 0; i < 4; ++i)
-//    y[i] = x1[i];
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -403,11 +401,11 @@
   ak_128_set_zero(c->y);
 }
 
- dll_export void ak_128_point_add( ak_point128 c, const ak_point128 a, const ak_point128 b, const ak_uint64 *p )
+ void ak_128_point_add( ak_point128 c, const ak_point128 a, const ak_point128 b, const ak_uint64 *p )
 {
   if ( ak_128_equal( a->x, b->x ) )
   {
-    ak_uint64 y1_plus_y2[2];
+    ak_mpzn128 y1_plus_y2;
     ak_128_add_mod( y1_plus_y2, a->y, b->y, p );
     if ( ak_128_is_zero( y1_plus_y2 ) )
     {
@@ -439,4 +437,65 @@
   ak_mpzn128 s_mul_x3_minus_x1;
   ak_128_mul_mod( s_mul_x3_minus_x1, s, x3_minus_x1, p );
   ak_128_add_mod( c->y, a->y, s_mul_x3_minus_x1, p );
+}
+
+ void ak_128_montgomery_init( ak_montgomery_context_128 *ctx )
+{
+  ak_mpzn256 r4 = { 0, 0, 1, 0 };
+  ak_128_sub( ctx->r, r4, ctx->p );
+
+  ak_mpzn256 tmp = { 0, 0, ctx->r[0], ctx->r[1] };
+  ak_128_rem( ctx->r2, tmp, ctx->p);
+
+  ak_mpzn256 p4 = { ctx->p[0], ctx->p[1], 0, 0 };
+  ak_mpzn256 ans;
+  ak_128_gcd( p4, r4, ans, tmp );
+  ak_128_sub( ctx->v, r4, ans );
+}
+
+ void ak_128_montgomery_add( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const ak_montgomery_context_128 *ctx )
+{
+  ak_128_add_mod(z, x, y, ctx->p);
+}
+
+ inline void mul_digit_128( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y)
+{
+  ak_uint64 tmp, _;
+  umul_ppmm( _, z[1], y[0], x[1] );
+  umul_ppmm( tmp, z[0], y[0], x[0] );
+  z[1] += tmp;
+  umul_ppmm( _, tmp, y[1], x[0] );
+  z[1] += tmp;
+}
+
+ void ak_128_montgomery_mul( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const ak_montgomery_context_128 *ctx )
+{
+  ak_mpzn256 t;
+  ak_128_mul( t, x, y );
+  ak_mpzn128 s;
+  mul_digit_128( s, ctx->v, t );
+  ak_mpzn256 sp;
+  ak_128_mul( sp, s, ctx->p );
+
+  ak_uint64 sign = ak_128_add( s, t, sp );
+
+  z[0] = t[2] + sp[2];
+  z[1] = t[3] + sp[3];
+  z[1] += (z[0] < t[2]);
+
+  z[1] += ( z[0] == 0xffffffffffffffffllu && sign == 1 );
+  z[0] += sign;
+
+  sub_2digits( z, ctx->p );
+}
+
+ void ak_128_to_montgomery( ak_uint64 *z, const ak_uint64 *x, const ak_montgomery_context_128 *ctx )
+{
+  ak_128_montgomery_mul( z, x, ctx->r2, ctx );
+}
+
+ void ak_128_from_montgomery( ak_uint64 *z, const ak_uint64 *x, const ak_montgomery_context_128 *ctx )
+{
+  ak_mpzn128 one = ak_mpzn128_one;
+  ak_128_montgomery_mul( z, x, one, ctx );
 }

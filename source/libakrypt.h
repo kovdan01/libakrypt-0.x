@@ -1132,6 +1132,25 @@ extern "C" {
 /*! \brief Получение обратного вычета по заданному 128-битному модулю. */
  dll_export void ak_128_inverse( ak_uint64 *o, const ak_uint64 *x, const ak_uint64 *p );
 
+ struct ak_montgomery_context_128
+{
+ ak_uint64 v[ak_mpzn128_size];
+ ak_uint64 r[ak_mpzn128_size];
+ ak_uint64 r2[ak_mpzn128_size];
+ ak_uint64 p[ak_mpzn128_size];
+};
+ typedef struct ak_montgomery_context_128 ak_montgomery_context_128;
+
+ dll_export void ak_128_montgomery_init( ak_montgomery_context_128 *ctx );
+
+ dll_export void ak_128_montgomery_add( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const ak_montgomery_context_128 *ctx );
+
+ dll_export void ak_128_montgomery_mul( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const ak_montgomery_context_128 *ctx );
+
+ dll_export void ak_128_to_montgomery( ak_uint64 *z, const ak_uint64 *x, const ak_montgomery_context_128 *ctx );
+
+ dll_export void ak_128_from_montgomery( ak_uint64 *z, const ak_uint64 *x, const ak_montgomery_context_128 *ctx );
+
 /* ----------------------------------------------------------------------------------------------- */
 /*! \brief Класс, реализующий точку эллиптической кривой с 128-битными афинными координатами. */
 /* ----------------------------------------------------------------------------------------------- */
