@@ -5,6 +5,7 @@
 /*  - содержит реализации функций для вычислений с 128-битными числами                             */
 /* ----------------------------------------------------------------------------------------------- */
  #include <libakrypt.h>
+ #include <gmp.h>
 
  inline int ak_128_equal( const ak_uint64 *x, const ak_uint64 *y )
 {
@@ -72,7 +73,7 @@
   z[1] += z[0] < x[0];
 
   // если сумма больше либо равна p
-  tmp = (tmp == 1 ? ak_true : (z[1] < p[1] ? ak_false : (z[0] < p[0] ? ak_false : ak_true)));
+  tmp = (tmp == 1 ? ak_true : (z[1] > p[1] ? ak_true : ((z[1] == p[1] && z[0] > p[0]) ? ak_true : ak_false)));
   if (tmp == ak_false)
     return;
   tmp = z[0] < p[0];
@@ -94,11 +95,11 @@
 {
   z[0] = x[0] - y[0];
   z[1] = x[1] - y[1];
-  ak_uint64 ans = z[1] > x[1];
-  ak_uint64 before = z[1];
+  //ak_uint64 ans = z[1] > x[1];
+  //ak_uint64 before = z[1];
   z[1] -= z[0] > x[0];
-  ans |= before < z[1];
-  return ans;
+  //ans |= before < z[1];
+  return ((x[1] < y[1]) || (x[1] == y[1] && x[0] < y[0]));
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -349,28 +350,101 @@
   return ret;
 }
 
- static void ak_128_gcd( const ak_uint64* a, const ak_uint64* b, ak_uint64 *x, ak_uint64 *y )
+ // 256-битное число на 128-битное (реально может быть более узким), частное - 256-битное число, остаток - 128-битное
+// static void ak_divide_256_to_128_or_lower( ak_uint64 *q, ak_uint64 *r, const ak_uint64 *u, const ak_uint64 *p )
+//{
+//  mpz_t q_, r_, u_, p_;
+//  mpz_init(q_);
+//  mpz_init(r_);
+//  mpz_init(u_);
+//  mpz_init(p_);
+//  ak_mpzn_to_mpz(u, ak_mpzn256_size, u_);
+//  ak_mpzn_to_mpz(p, ak_mpzn128_size, p_);
+//  //mpz_divmod(q_, r_, u_, p_);
+//  mpz_div(q_, u_, p_);
+//  mpz_mod(r_, u_, p_);
+//  q[0] = 0;
+//  q[1] = 0;
+//  q[2] = 0;
+//  q[3] = 0;
+//  r[0] = 0;
+//  r[1] = 0;
+//  memcpy( q, q_->_mp_d, q_->_mp_size*sizeof( ak_uint64 ));
+//  memcpy( r, r_->_mp_d, r_->_mp_size*sizeof( ak_uint64 ));
+//  mpz_clear(q_);
+//  mpz_clear(r_);
+//  mpz_clear(u_);
+//  mpz_clear(p_);
+//}
+
+ static void ak_128_gcd_mpz( const mpz_t a, const mpz_t b, mpz_t x, mpz_t y )
 {
-  if ( a[0] == 0 && a[1] == 0 )
+  if ( mpz_cmp_ui( a, 0 ) == 0 )
   {
-    x[0] = 0;
-    x[1] = 0;
-    y[0] = 1;
-    y[1] = 0;
+    mpz_set_ui( x, 0 );
+    mpz_set_ui( y, 1 );
     return;
   }
-  ak_mpzn256 x1 = { 0, 0, 0, 0 };
-  ak_mpzn256 y1 = { 0, 0, 0, 0 };
-  ak_mpzn256 b_div_a = { 0, 0, 0, 0 };
-  ak_mpzn256 b_mod_a = { 0, 0, 0, 0 };
 
-  ak_128_div( b_div_a, b_mod_a, b, a );
+  mpz_t x1, y1, b_div_a, b_mod_a;
+  mpz_init_set_ui( x1, 0 );
+  mpz_init_set_ui( y1, 0 );
+  mpz_init( b_div_a );
+  mpz_init( b_mod_a );
 
-  ak_128_gcd( b_mod_a, a, x1, y1 );
-  ak_mpzn256 b_div_a_mul_x1;
-  ak_128_mul( b_div_a_mul_x1, b_div_a, x1 );
-  ak_128_sub( x, y1, b_div_a_mul_x1 );
-  ak_mpzn_set(y, x1, ak_mpzn256_size);
+  mpz_div( b_div_a, b, a );
+  mpz_mod( b_mod_a, b, a );
+
+  ak_128_gcd_mpz( b_mod_a, a, x1, y1 );
+
+  mpz_t b_div_a_mul_x1;
+  mpz_init_set_ui( b_div_a_mul_x1, 0 );
+  mpz_mul( b_div_a_mul_x1, b_div_a, x1 );
+  mpz_sub( x, y1, b_div_a_mul_x1 );
+  mpz_set( y, x1 );
+
+  mpz_clear( b_div_a_mul_x1 );
+  mpz_clear( b_mod_a );
+  mpz_clear( b_div_a );
+  mpz_clear( y1 );
+  mpz_clear( x1 );
+}
+
+ static void to_mpzn( const mpz_t x_, ak_uint64 *x, const ak_uint64 *p )
+{
+  if (x_->_mp_size < 0)
+  {
+    memcpy( x, x_->_mp_d, -x_->_mp_size*sizeof( ak_uint64 ));
+    ak_mpzn_sub(x, (ak_uint64*)p, x, ak_mpzn128_size);
+  }
+  else
+  {
+    memcpy( x, x_->_mp_d, x_->_mp_size*sizeof( ak_uint64 ));
+  }
+  //printf("%s\n", ak_mpzn_to_hexstr(x, ak_mpzn256_size));
+}
+
+ static void ak_128_gcd( const ak_uint64 *a, const ak_uint64 *b, ak_uint64 *x, ak_uint64 *y )
+{
+  mpz_t a_, b_, x_, y_;
+  mpz_init(a_);
+  mpz_init(b_);
+  mpz_init(x_);
+  mpz_init(y_);
+
+  ak_mpzn_to_mpz(a, ak_mpzn256_size, a_);
+  ak_mpzn_to_mpz(b, ak_mpzn256_size, b_);
+  ak_mpzn_to_mpz(x, ak_mpzn256_size, x_);
+  ak_mpzn_to_mpz(y, ak_mpzn256_size, y_);
+  ak_128_gcd_mpz(a_, b_, x_, y_);
+
+  to_mpzn(x_, x, b);
+  to_mpzn(y_, y, b);
+
+  mpz_clear(y_);
+  mpz_clear(x_);
+  mpz_clear(b_);
+  mpz_clear(a_);
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -477,16 +551,14 @@
   ak_mpzn256 sp;
   ak_128_mul( sp, s, ctx->p );
 
-  ak_uint64 sign = ak_128_add( s, t, sp );
+  ak_uint64 sign = ak_mpzn_add(t, t, sp, ak_mpzn256_size);
+  z[0] = t[2];
+  z[1] = t[3];
 
-  z[0] = t[2] + sp[2];
-  z[1] = t[3] + sp[3];
-  z[1] += (z[0] < t[2]);
-
-  z[1] += ( z[0] == 0xffffffffffffffffllu && sign == 1 );
-  z[0] += sign;
-
-  sub_2digits( z, ctx->p );
+  if (sub_2digits( z, ctx->p ) == 0 && sign == 1)
+  {
+    ak_mpzn_sub(z, z, (ak_uint64*)ctx->p, ak_mpzn128_size);
+  }
 }
 
  void ak_128_to_montgomery( ak_uint64 *z, const ak_uint64 *x, const ak_montgomery_context_128 *ctx )
