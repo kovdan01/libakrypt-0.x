@@ -1154,6 +1154,10 @@ extern "C" {
  dll_export void ak_128_montgomery_add( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const ak_montgomery_context_128 *ctx );
 /*! \brief Умножение двух вычетов в представлении Монтгомери. */
  dll_export void ak_128_montgomery_mul( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const ak_montgomery_context_128 *ctx );
+/*! \brief Поиск вычета, обратного данному в представлении Монтгомери. */
+ dll_export void ak_128_montgomery_inverse( ak_uint64 *z, const ak_uint64 *x, const ak_montgomery_context_128 *ctx );
+/*! \brief Возведение одного вычета в степень другого в представлении Монтгомери. */
+ dll_export void ak_128_montgomery_modpow( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *k, const ak_montgomery_context_128 *ctx );
 /*! \brief Приведение вычета из прямого представления к форме Монтгомери. */
  dll_export void ak_128_to_montgomery( ak_uint64 *z, const ak_uint64 *x, const ak_montgomery_context_128 *ctx );
 /*! \brief Приведение вычета из формы Монтгомери к прямому представлению */
