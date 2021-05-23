@@ -5,6 +5,7 @@
 /*  - содержит реализации функций для вычислений с 128-битными числами                             */
 /* ----------------------------------------------------------------------------------------------- */
  #include <libakrypt.h>
+ #include <gmp.h>
 
  inline int ak_128_equal( const ak_uint64 *x, const ak_uint64 *y )
 {
@@ -50,7 +51,7 @@
 {
   z[0] = x[0] + y[0];
   z[1] = x[1] + y[1];
-  ak_uint64 ret = z[1] < x[1];
+  ak_uint64 ret = (z[1] < x[1]) || ((z[1] == 0xffffffffffffffffllu) && (z[0] < x[0]));
   z[1] += (z[0] < x[0]);
   return ret;
 }
@@ -72,7 +73,7 @@
   z[1] += z[0] < x[0];
 
   // если сумма больше либо равна p
-  tmp = (tmp == 1 ? ak_true : (z[1] < p[1] ? ak_false : (z[0] < p[0] ? ak_false : ak_true)));
+  tmp = (tmp == 1 ? ak_true : (z[1] > p[1] ? ak_true : ((z[1] == p[1] && z[0] > p[0]) ? ak_true : ak_false)));
   if (tmp == ak_false)
     return;
   tmp = z[0] < p[0];
@@ -94,11 +95,8 @@
 {
   z[0] = x[0] - y[0];
   z[1] = x[1] - y[1];
-  ak_uint64 ans = z[1] > x[1];
-  ak_uint64 before = z[1];
   z[1] -= z[0] > x[0];
-  ans |= before < z[1];
-  return ans;
+  return ((x[1] < y[1]) || (x[1] == y[1] && x[0] < y[0]));
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -170,7 +168,7 @@
   ak_128_rem( z, tmp, p );
 }
 
- static void rshift_1_bit( ak_uint64 *x )
+ static void detail_128_rshift_1_bit( ak_uint64 *x )
 {
   x[0] >>= 1;
   x[0] |= (ak_uint64)(x[1] & 1) << 63;
@@ -179,7 +177,7 @@
   x[2] >>= 1;
 }
 
- inline static ak_uint64 sub_2digits( ak_uint64 *x, const ak_uint64 *y )
+ inline static ak_uint64 detail_128_try_sub_2_words( ak_uint64 *x, const ak_uint64 *y )
 {
   if ( x[1] > y[1] )
   {
@@ -199,7 +197,7 @@
   return 0;
 }
 
- inline static ak_uint64 sub_3digits( ak_uint64 *x, const ak_uint64 *y )
+ inline static ak_uint64 detail_128_try_sub_3_words( ak_uint64 *x, const ak_uint64 *y )
 {
   if ( x[2] > y[2] )
   {
@@ -214,7 +212,7 @@
 
   if ( x[2] == y[2] )
   {
-    if (sub_2digits( x, y ))
+    if (detail_128_try_sub_2_words( x, y ))
     {
       x[2] = 0;
       return 1;
@@ -239,7 +237,7 @@
   ak_mpzn256 x = { u[0], u[1], u[2], u[3] };
 
   // 0
-  sub_2digits( x + 2, pshifted + 2 );
+  detail_128_try_sub_2_words( x + 2, pshifted + 2 );
   pshifted[1] |= (ak_uint64)(pshifted[2] & 1) << 63;
   pshifted[2] >>= 1;
   pshifted[2] |= (ak_uint64)(pshifted[3] & 1) << 63;
@@ -248,18 +246,18 @@
   // 1 - 62
   for ( int i = 0; i < 62; ++i )
   {
-    sub_3digits( x + 1, pshifted + 1 );
-    rshift_1_bit( pshifted + 1 );
+    detail_128_try_sub_3_words( x + 1, pshifted + 1 );
+    detail_128_rshift_1_bit( pshifted + 1 );
   }
 
   // 63
-  sub_3digits( x + 1, pshifted + 1 );
+  detail_128_try_sub_3_words( x + 1, pshifted + 1 );
   pshifted[1] = p[0];
   pshifted[2] = p[1];
   pshifted[3] = 0;
 
   // 0
-  sub_3digits( x + 1, pshifted + 1 );
+  detail_128_try_sub_3_words( x + 1, pshifted + 1 );
   pshifted[0] |= (ak_uint64)(pshifted[1] & 1) << 63;
   pshifted[1] >>= 1;
   pshifted[1] |= (ak_uint64)(pshifted[2] & 1) << 63;
@@ -268,17 +266,17 @@
   // 1 - 62
   for ( int i = 0; i < 62; ++i )
   {
-    sub_3digits( x, pshifted );
-    rshift_1_bit( pshifted );
+    detail_128_try_sub_3_words( x, pshifted );
+    detail_128_rshift_1_bit( pshifted );
   }
 
   // 63
-  sub_3digits( x, pshifted );
+  detail_128_try_sub_3_words( x, pshifted );
   pshifted[0] = p[0];
   pshifted[1] = p[1];
   pshifted[2] = 0;
 
-  sub_3digits( x, pshifted );
+  detail_128_try_sub_3_words( x, pshifted );
 
   r[0] = x[0];
   r[1] = x[1];
@@ -302,7 +300,7 @@
   q[0] = 0;
   q[1] = 0;
   // 0
-  ak_uint64 ret = sub_2digits( x + 2, pshifted + 2 );  // бит 2^128
+  ak_uint64 ret = detail_128_try_sub_2_words( x + 2, pshifted + 2 );  // бит 2^128
   pshifted[1] |= (ak_uint64)(pshifted[2] & 1) << 63;
   pshifted[2] >>= 1;
   pshifted[2] |= (ak_uint64)(pshifted[3] & 1) << 63;
@@ -311,18 +309,18 @@
   // 1 - 62
   for ( int i = 0; i < 62; ++i )
   {
-    q[1] |= sub_3digits( x + 1, pshifted + 1 ) << (63 - i);
-    rshift_1_bit( pshifted + 1 );
+    q[1] |= detail_128_try_sub_3_words( x + 1, pshifted + 1 ) << (63 - i);
+    detail_128_rshift_1_bit( pshifted + 1 );
   }
 
   // 63
-  q[1] |= sub_3digits( x + 1, pshifted + 1 ) << 1;
+  q[1] |= detail_128_try_sub_3_words( x + 1, pshifted + 1 ) << 1;
   pshifted[1] = p[0];
   pshifted[2] = p[1];
   pshifted[3] = 0;
 
   // 0
-  q[1] |= sub_3digits( x + 1, pshifted + 1 );
+  q[1] |= detail_128_try_sub_3_words( x + 1, pshifted + 1 );
   pshifted[0] |= (ak_uint64)(pshifted[1] & 1) << 63;
   pshifted[1] >>= 1;
   pshifted[1] |= (ak_uint64)(pshifted[2] & 1) << 63;
@@ -331,17 +329,17 @@
   // 1 - 62
   for ( int i = 0; i < 62; ++i )
   {
-    q[0] |= sub_3digits( x, pshifted ) << (63 - i);
-    rshift_1_bit( pshifted );
+    q[0] |= detail_128_try_sub_3_words( x, pshifted ) << (63 - i);
+    detail_128_rshift_1_bit( pshifted );
   }
 
   // 63
-  q[0] |= sub_3digits( x, pshifted ) << 1;
+  q[0] |= detail_128_try_sub_3_words( x, pshifted ) << 1;
   pshifted[0] = p[0];
   pshifted[1] = p[1];
   pshifted[2] = 0;
 
-  q[0] |= sub_3digits( x, pshifted );
+  q[0] |= detail_128_try_sub_3_words( x, pshifted );
 
   r[0] = x[0];
   r[1] = x[1];
@@ -349,30 +347,74 @@
   return ret;
 }
 
- static void ak_128_gcd( const ak_uint64* a, const ak_uint64* b, ak_uint64 *x, ak_uint64 *y )
+ static void detail_128_gcd_mpz( const mpz_t a, const mpz_t b, mpz_t x, mpz_t y )
 {
-  if ( a[0] == 0 && a[1] == 0 )
+  if ( mpz_cmp_ui( a, 0 ) == 0 )
   {
-    x[0] = 0;
-    x[1] = 0;
-    y[0] = 1;
-    y[1] = 0;
+    mpz_set_ui( x, 0 );
+    mpz_set_ui( y, 1 );
     return;
   }
-  ak_mpzn256 x1 = { 0, 0, 0, 0 };
-  ak_mpzn256 y1 = { 0, 0, 0, 0 };
-  ak_mpzn256 b_div_a = { 0, 0, 0, 0 };
-  ak_mpzn256 b_mod_a = { 0, 0, 0, 0 };
 
-  ak_128_div( b_div_a, b_mod_a, b, a );
+  mpz_t x1, y1, b_div_a, b_mod_a;
+  mpz_init_set_ui( x1, 0 );
+  mpz_init_set_ui( y1, 0 );
+  mpz_init( b_div_a );
+  mpz_init( b_mod_a );
 
-  ak_128_gcd( b_mod_a, a, x1, y1 );
-  ak_uint64 b_div_a_mul_x1[4];
-  ak_128_mul( b_div_a_mul_x1, b_div_a, x1 );
-  ak_128_sub( x, y1, b_div_a_mul_x1 );
-  ak_mpzn_set(y, x1, ak_mpzn256_size);
-//  for (int i = 0; i < 4; ++i)
-//    y[i] = x1[i];
+  mpz_div( b_div_a, b, a );
+  mpz_mod( b_mod_a, b, a );
+
+  detail_128_gcd_mpz( b_mod_a, a, x1, y1 );
+
+  mpz_t b_div_a_mul_x1;
+  mpz_init_set_ui( b_div_a_mul_x1, 0 );
+  mpz_mul( b_div_a_mul_x1, b_div_a, x1 );
+  mpz_sub( x, y1, b_div_a_mul_x1 );
+  mpz_set( y, x1 );
+
+  mpz_clear( b_div_a_mul_x1 );
+  mpz_clear( b_mod_a );
+  mpz_clear( b_div_a );
+  mpz_clear( y1 );
+  mpz_clear( x1 );
+}
+
+ static void detail_128_to_mpzn( const mpz_t x_, ak_uint64 *x, const ak_uint64 *p )
+{
+  if ( x_->_mp_size < 0 )
+  {
+    ak_mpzn128 tmp = ak_mpzn128_zero;
+    memcpy( tmp, x_->_mp_d, -x_->_mp_size*sizeof( ak_uint64 ) );
+    ak_128_sub( x, p, tmp );
+  }
+  else
+  {
+    memcpy( x, x_->_mp_d, x_->_mp_size*sizeof( ak_uint64 ) );
+  }
+}
+
+ static void detail_128_gcd( const ak_uint64 *a, const ak_uint64 *b, ak_uint64 *x, ak_uint64 *y )
+{
+  mpz_t a_, b_, x_, y_;
+  mpz_init(a_);
+  mpz_init(b_);
+  mpz_init(x_);
+  mpz_init(y_);
+
+  ak_mpzn_to_mpz(a, ak_mpzn256_size, a_);
+  ak_mpzn_to_mpz(b, ak_mpzn256_size, b_);
+  ak_mpzn_to_mpz(x, ak_mpzn256_size, x_);
+  ak_mpzn_to_mpz(y, ak_mpzn256_size, y_);
+  detail_128_gcd_mpz(a_, b_, x_, y_);
+
+  detail_128_to_mpzn(x_, x, b);
+  detail_128_to_mpzn(y_, y, b);
+
+  mpz_clear(y_);
+  mpz_clear(x_);
+  mpz_clear(b_);
+  mpz_clear(a_);
 }
 
 /* ----------------------------------------------------------------------------------------------- */
@@ -391,7 +433,7 @@
   ak_mpzn256 ans;
   ak_mpzn256 tmp;
 
-  ak_128_gcd( x4, p4, ans, tmp );
+  detail_128_gcd( x4, p4, ans, tmp );
   o[0] = ans[0];
   o[1] = ans[1];
 }
@@ -403,16 +445,16 @@
   ak_128_set_zero(c->y);
 }
 
- dll_export void ak_128_point_add( ak_point128 c, const ak_point128 a, const ak_point128 b, const ak_uint64 *p )
+ void ak_128_point_add( ak_point128 c, const ak_point128 a, const ak_point128 b, const ak_uint64 *p )
 {
   if ( ak_128_equal( a->x, b->x ) )
   {
-    ak_uint64 y1_plus_y2[2];
+    ak_mpzn128 y1_plus_y2;
     ak_128_add_mod( y1_plus_y2, a->y, b->y, p );
     if ( ak_128_is_zero( y1_plus_y2 ) )
     {
-      ak_128_set_zero(c->x);
-      ak_128_set_zero(c->y);
+      ak_128_set_zero( c->x );
+      ak_128_set_zero( c->y );
       return;
     }
     if ( ak_128_equal( a->y, b->y ) )
@@ -439,4 +481,211 @@
   ak_mpzn128 s_mul_x3_minus_x1;
   ak_128_mul_mod( s_mul_x3_minus_x1, s, x3_minus_x1, p );
   ak_128_add_mod( c->y, a->y, s_mul_x3_minus_x1, p );
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+/*! Функция инициализирует контекст с данными, необходимыми для выполнения операций Монтгомери.
+
+    @param ctx Указатель на контекст, данные которого необходимо заполнить. Поле p контекста должно
+               содержать модуль, по которому будут производиться вычисления. Функция использует эту
+               информацию и заполняет поля r, r2, v.                                               */
+/* ----------------------------------------------------------------------------------------------- */
+ void ak_128_montgomery_init( ak_montgomery_context_128 *ctx )
+{
+  ak_mpzn256 r4 = { 0, 0, 1, 0 };
+  ak_128_sub( ctx->r, r4, ctx->p );
+
+  ak_mpzn256 tmp = { 0, 0, ctx->r[0], ctx->r[1] };
+  ak_128_rem( ctx->r2, tmp, ctx->p);
+
+  ak_mpzn256 p4 = { ctx->p[0], ctx->p[1], 0, 0 };
+  ak_mpzn256 ans;
+  detail_128_gcd( p4, r4, ans, tmp );
+  ak_128_sub( ctx->v, r4, ans );
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+/*! Функция складывает два вычета в форме Монтгомери по заданному 128-битному модулю. Результат
+    сложения в форме Монтгомери помещается в переменную z. Указатель на z не может совпадать с
+    указателями на слагаемые.
+
+    @param z Указатель на вычет, в который помещается результат
+    @param x Левый аргумент опреации сложения
+    @param y Правый аргумент операции сложения
+    @param ctx Контекст с данными, необходимыми для операций Монтгомери                            */
+/* ----------------------------------------------------------------------------------------------- */
+ inline void ak_128_montgomery_add( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y,
+                                    const ak_montgomery_context_128 *ctx )
+{
+  ak_128_add_mod( z, x, y, ctx->p );
+}
+
+ inline static void detail_128_mul_lower_part_only( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y)
+{
+  ak_uint64 tmp, _;
+  umul_ppmm( _, z[1], y[0], x[1] );
+  umul_ppmm( tmp, z[0], y[0], x[0] );
+  z[1] += tmp;
+  umul_ppmm( _, tmp, y[1], x[0] );
+  z[1] += tmp;
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+/*! Функция перемножает два вычета в форме Монтгомери по заданному 128-битному модулю. Результат
+    умножения в форме Монтгомери помещается в переменную z. Указатель на z не может совпадать с
+    указателями на множители.
+
+    @param z Указатель на вычет, в который помещается результат
+    @param x Левый аргумент опреации умножения
+    @param y Правый аргумент операции умножения
+    @param ctx Контекст с данными, необходимыми для операций Монтгомери                            */
+/* ----------------------------------------------------------------------------------------------- */
+ void ak_128_montgomery_mul( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y,
+                             const ak_montgomery_context_128 *ctx )
+{
+  ak_mpzn256 t;
+  ak_128_mul( t, x, y );
+  ak_mpzn128 s;
+  detail_128_mul_lower_part_only( s, ctx->v, t );
+  ak_mpzn256 sp;
+  ak_128_mul( sp, s, ctx->p );
+
+  s[1] = t[1] + sp[1];
+  ak_uint64 sign;
+  if ( s[1] < t[1] || ( s[1] == 0xffffffffffffffffllu && t[0] + sp[0] < t[0] ) )
+  {
+    sign = ak_128_add( s, t + 2, sp + 2 );
+    if ( s[0] == 0xffffffffffffffffllu )
+    {
+      s[0] = 0;
+      if ( s[1] == 0xffffffffffffffffllu )
+      {
+        s[1] = 0;
+        sign = 1;
+      }
+      else
+      {
+        ++s[1];
+      }
+    }
+    else
+    {
+      ++s[0];
+    }
+  }
+  else
+  {
+    sign = ak_128_add( s, t + 2, sp + 2 );
+  }
+
+  if ( sign == 1 )
+  {
+    ak_128_sub( z, s, ctx->p );
+    return;
+  }
+  if ( s[1] > ctx->p[1] )
+  {
+    z[1] = s[1] - ctx->p[1] - ( s[0] < ctx->p[0] );
+    z[0] = s[0] - ctx->p[0];
+    return;
+  }
+  if ( s[1] == ctx->p[1] && s[0] >= ctx->p[0] )
+  {
+    z[1] = 0;
+    z[0] = s[0] - ctx->p[0];
+    return;
+  }
+
+  z[1] = s[1];
+  z[0] = s[0];
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+/*! Функция возводит один вычет в представлении Монтгомери в степень другого по модулю p. Результат
+    возведения в степень в форме Монтгомери помещается в переменную z. Указатель на z не может
+    совпадать с указателями на операнды.
+
+    @param z Указатель на вычет, в который помещается результат
+    @param x Вычет, возводимый в степень
+    @param y Степень. Предполагается, что 2^127 <= y < 2^128
+    @param ctx Контекст с данными, необходимыми для операций Монтгомери                            */
+/* ----------------------------------------------------------------------------------------------- */
+ void ak_128_montgomery_modpow( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *k,
+                                const ak_montgomery_context_128 *ctx )
+{
+  ak_mpzn128 v = { ctx->r[0], ctx->r[1] };
+  ak_mpzn128 tmp;
+  z[0] = x[0];
+  z[1] = x[1];
+  for ( int i = 63; i >= 0; --i )
+  {
+    ak_128_montgomery_mul( tmp, v, v, ctx );
+    if ( ( k[1] & ( 1llu << i ) ) != 0 )
+    {
+      ak_128_montgomery_mul( v, z, tmp, ctx );
+    }
+    else
+    {
+      v[0] = tmp[0];
+      v[1] = tmp[1];
+    }
+  }
+  for ( int i = 63; i >= 0; --i )
+  {
+    ak_128_montgomery_mul( tmp, v, v, ctx );
+    if ( ( k[0] & ( 1llu << i ) ) != 0 )
+    {
+      ak_128_montgomery_mul( v, z, tmp, ctx );
+    }
+    else
+    {
+      v[0] = tmp[0];
+      v[1] = tmp[1];
+    }
+  }
+  z[0] = v[0];
+  z[1] = v[1];
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+/*! Функция находит обратный элемент по модулю p для вычета в представлении Монтгомери. Обратный
+    элемент в форме Монтгомери помещается в переменную z. Указатель на z не может совпадать с
+    указателем на исходный вычет.
+
+    @param z Указатель на вычет, в который помещается результат
+    @param x Вычет, обратный к которому требуется найти
+    @param ctx Контекст с данными, необходимыми для операций Монтгомери                            */
+/* ----------------------------------------------------------------------------------------------- */
+ inline void ak_128_montgomery_inverse( ak_uint64 *z, const ak_uint64 *x,
+                                        const ak_montgomery_context_128 *ctx )
+{
+  ak_mpzn128 p_minus_1 = { ctx->p[0] - 2, ( ctx->p[0] >= 2 ? ctx->p[1] : ctx->p[1] - 1 ) };
+  ak_128_montgomery_modpow( z, x, p_minus_1, ctx );
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+/*! Функция приводит вычет из прямого вида в форму Монтгомери. Результат приведения помещается в
+    переменную z. Указатель на z не может совпадать с указателем на исходный вычет.
+
+    @param z Указатель на вычет, в который помещается результат
+    @param x Вычет, который требуется привести в форму Монтгомери
+    @param ctx Контекст с данными, необходимыми для операций Монтгомери                            */
+/* ----------------------------------------------------------------------------------------------- */
+ inline void ak_128_to_montgomery( ak_uint64 *z, const ak_uint64 *x, const ak_montgomery_context_128 *ctx )
+{
+  ak_128_montgomery_mul( z, x, ctx->r2, ctx );
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+/*! Функция приводит вычет из формы Монтгомери к прямому виду. Результат приведения помещается в
+    переменную z. Указатель на z не может совпадать с указателем на исходный вычет.
+
+    @param z Указатель на вычет, в который помещается результат
+    @param x Вычет, который требуется привести к прямому виду
+    @param ctx Контекст с данными, необходимыми для операций Монтгомери                            */
+/* ----------------------------------------------------------------------------------------------- */
+ inline void ak_128_from_montgomery( ak_uint64 *z, const ak_uint64 *x, const ak_montgomery_context_128 *ctx )
+{
+  ak_mpzn128 one = ak_mpzn128_one;
+  ak_128_montgomery_mul( z, x, one, ctx );
 }

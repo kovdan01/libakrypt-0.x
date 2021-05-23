@@ -1133,6 +1133,37 @@ extern "C" {
  dll_export void ak_128_inverse( ak_uint64 *o, const ak_uint64 *x, const ak_uint64 *p );
 
 /* ----------------------------------------------------------------------------------------------- */
+/*! \brief Класс, предназначенный для хранения данных, необходимых для операций Монтгомери */
+/* ----------------------------------------------------------------------------------------------- */
+ struct ak_montgomery_context_128
+{
+/*! \brief Модуль, по которому производятся вычисления */
+ ak_uint64 p[ak_mpzn128_size];
+/*! \brief Значение 2^128 по модулю p */
+ ak_uint64 r[ak_mpzn128_size];
+/*! \brief Значение 2^256 по модулю p */
+ ak_uint64 r2[ak_mpzn128_size];
+/*! \brief Число, удовлетворяющее соотношению ru − pv = 1, где r = 2^128 */
+ ak_uint64 v[ak_mpzn128_size];
+};
+ typedef struct ak_montgomery_context_128 ak_montgomery_context_128;
+
+/*! \brief Инициализация данных, необходимых для операций Монтгомери. */
+ dll_export void ak_128_montgomery_init( ak_montgomery_context_128 *ctx );
+/*! \brief Сложение двух вычетов в представлении Монтгомери. */
+ dll_export void ak_128_montgomery_add( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const ak_montgomery_context_128 *ctx );
+/*! \brief Умножение двух вычетов в представлении Монтгомери. */
+ dll_export void ak_128_montgomery_mul( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const ak_montgomery_context_128 *ctx );
+/*! \brief Поиск вычета, обратного данному в представлении Монтгомери. */
+ dll_export void ak_128_montgomery_inverse( ak_uint64 *z, const ak_uint64 *x, const ak_montgomery_context_128 *ctx );
+/*! \brief Возведение одного вычета в степень другого в представлении Монтгомери. */
+ dll_export void ak_128_montgomery_modpow( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *k, const ak_montgomery_context_128 *ctx );
+/*! \brief Приведение вычета из прямого представления к форме Монтгомери. */
+ dll_export void ak_128_to_montgomery( ak_uint64 *z, const ak_uint64 *x, const ak_montgomery_context_128 *ctx );
+/*! \brief Приведение вычета из формы Монтгомери к прямому представлению */
+ dll_export void ak_128_from_montgomery( ak_uint64 *z, const ak_uint64 *x, const ak_montgomery_context_128 *ctx );
+
+/* ----------------------------------------------------------------------------------------------- */
 /*! \brief Класс, реализующий точку эллиптической кривой с 128-битными афинными координатами. */
 /* ----------------------------------------------------------------------------------------------- */
  struct point128
