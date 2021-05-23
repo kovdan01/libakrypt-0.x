@@ -347,33 +347,6 @@
   return ret;
 }
 
- // 256-битное число на 128-битное (реально может быть более узким), частное - 256-битное число, остаток - 128-битное
-// static void ak_divide_256_to_128_or_lower( ak_uint64 *q, ak_uint64 *r, const ak_uint64 *u, const ak_uint64 *p )
-//{
-//  mpz_t q_, r_, u_, p_;
-//  mpz_init(q_);
-//  mpz_init(r_);
-//  mpz_init(u_);
-//  mpz_init(p_);
-//  ak_mpzn_to_mpz(u, ak_mpzn256_size, u_);
-//  ak_mpzn_to_mpz(p, ak_mpzn128_size, p_);
-//  //mpz_divmod(q_, r_, u_, p_);
-//  mpz_div(q_, u_, p_);
-//  mpz_mod(r_, u_, p_);
-//  q[0] = 0;
-//  q[1] = 0;
-//  q[2] = 0;
-//  q[3] = 0;
-//  r[0] = 0;
-//  r[1] = 0;
-//  memcpy( q, q_->_mp_d, q_->_mp_size*sizeof( ak_uint64 ));
-//  memcpy( r, r_->_mp_d, r_->_mp_size*sizeof( ak_uint64 ));
-//  mpz_clear(q_);
-//  mpz_clear(r_);
-//  mpz_clear(u_);
-//  mpz_clear(p_);
-//}
-
  static void ak_128_gcd_mpz( const mpz_t a, const mpz_t b, mpz_t x, mpz_t y )
 {
   if ( mpz_cmp_ui( a, 0 ) == 0 )
@@ -409,16 +382,18 @@
 
  static void to_mpzn( const mpz_t x_, ak_uint64 *x, const ak_uint64 *p )
 {
-  if (x_->_mp_size < 0)
+  if ( x_->_mp_size < 0 )
   {
-    memcpy( x, x_->_mp_d, -x_->_mp_size*sizeof( ak_uint64 ));
-    ak_mpzn_sub(x, (ak_uint64*)p, x, ak_mpzn128_size);
+//    ak_mpzn128 tmp = ak_mpzn128_zero;
+//    memcpy( tmp, x_->_mp_d, -x_->_mp_size*sizeof( ak_uint64 ) );
+//    ak_128_sub( x, p, tmp );
+      memcpy( x, x_->_mp_d, -x_->_mp_size*sizeof( ak_uint64 ) );
+      ak_mpzn_sub( x, (ak_uint64*)p, x, ak_mpzn128_size );
   }
   else
   {
-    memcpy( x, x_->_mp_d, x_->_mp_size*sizeof( ak_uint64 ));
+    memcpy( x, x_->_mp_d, x_->_mp_size*sizeof( ak_uint64 ) );
   }
-  //printf("%s\n", ak_mpzn_to_hexstr(x, ak_mpzn256_size));
 }
 
  static void ak_128_gcd( const ak_uint64 *a, const ak_uint64 *b, ak_uint64 *x, ak_uint64 *y )
@@ -480,8 +455,8 @@
     ak_128_add_mod( y1_plus_y2, a->y, b->y, p );
     if ( ak_128_is_zero( y1_plus_y2 ) )
     {
-      ak_128_set_zero(c->x);
-      ak_128_set_zero(c->y);
+      ak_128_set_zero( c->x );
+      ak_128_set_zero( c->y );
       return;
     }
     if ( ak_128_equal( a->y, b->y ) )
@@ -526,7 +501,7 @@
 
  void ak_128_montgomery_add( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y, const ak_montgomery_context_128 *ctx )
 {
-  ak_128_add_mod(z, x, y, ctx->p);
+  ak_128_add_mod( z, x, y, ctx->p );
 }
 
  inline void mul_digit_128( ak_uint64 *z, const ak_uint64 *x, const ak_uint64 *y)
