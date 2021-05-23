@@ -95,10 +95,7 @@
 {
   z[0] = x[0] - y[0];
   z[1] = x[1] - y[1];
-  //ak_uint64 ans = z[1] > x[1];
-  //ak_uint64 before = z[1];
   z[1] -= z[0] > x[0];
-  //ans |= before < z[1];
   return ((x[1] < y[1]) || (x[1] == y[1] && x[0] < y[0]));
 }
 
@@ -551,14 +548,54 @@
   ak_mpzn256 sp;
   ak_128_mul( sp, s, ctx->p );
 
-  ak_uint64 sign = ak_mpzn_add(t, t, sp, ak_mpzn256_size);
-  z[0] = t[2];
-  z[1] = t[3];
-
-  if (sub_2digits( z, ctx->p ) == 0 && sign == 1)
+  s[1] = t[1] + sp[1];
+  ak_uint64 sign;
+  if ( s[1] < t[1] || ( s[1] == 0xffffffffffffffffllu && t[0] + sp[0] < t[0] ) )
   {
-    ak_mpzn_sub(z, z, (ak_uint64*)ctx->p, ak_mpzn128_size);
+    sign = ak_128_add( s, t + 2, sp + 2 );
+    if ( s[0] == 0xffffffffffffffffllu )
+    {
+      s[0] = 0;
+      if ( s[1] == 0xffffffffffffffffllu )
+      {
+        s[1] = 0;
+        sign = 1;
+      }
+      else
+      {
+        ++s[1];
+      }
+    }
+    else
+    {
+      ++s[0];
+    }
   }
+  else
+  {
+    sign = ak_128_add( s, t + 2, sp + 2 );
+  }
+
+  if ( sign == 1 )
+  {
+    ak_128_sub( z, s, ctx->p );
+    return;
+  }
+  if ( s[1] > ctx->p[1] )
+  {
+    z[1] = s[1] - ctx->p[1] - ( s[0] < ctx->p[0] );
+    z[0] = s[0] - ctx->p[0];
+    return;
+  }
+  if ( s[1] == ctx->p[1] && s[0] >= ctx->p[0] )
+  {
+    z[1] = 0;
+    z[0] = s[0] - ctx->p[0];
+    return;
+  }
+
+  z[1] = s[1];
+  z[0] = s[0];
 }
 
  void ak_128_to_montgomery( ak_uint64 *z, const ak_uint64 *x, const ak_montgomery_context_128 *ctx )
